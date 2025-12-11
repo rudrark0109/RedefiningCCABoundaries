@@ -1,3 +1,5 @@
 docs/
 *.ipynb
 **/.ipynb_checkpoints/
+*.pdf
+*.html
