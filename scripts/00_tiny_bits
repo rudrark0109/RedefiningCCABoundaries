@@ -1,0 +1,60 @@
+# import os, geopandas as gpd
+
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# OUT_DIR = os.path.join(BASE_DIR, "output")
+# shp_path = os.path.join(OUT_DIR, "cook_bg_acs2020_ses.shp")
+
+# gdf = gpd.read_file(shp_path)
+# print(len(gdf))
+# print(gdf["GEOID"].head(10).tolist())
+
+
+
+"""=======================================================
+         Contiguninty Check with GeoPandas
+=========================================================="""
+import os
+import geopandas as gpd
+from libpysal.weights import Queen
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT_DIR = os.path.join(BASE_DIR, "output")
+shp = os.path.join(OUT_DIR, "cook_bg_skater_60_90.shp")  # your SKATER output
+
+gdf = gpd.read_file(shp)
+col = "skater_80"
+
+# Build Queen on *all* BGs
+w = Queen.from_dataframe(gdf, use_index=False)
+
+# For each cluster, check if it’s a single connected component
+bad_clusters = []
+for k in sorted(gdf[col].unique()):
+    idx = gdf[gdf[col] == k].index.to_list()
+    sub = w.sparse[idx, :][:, idx]  # adjacency for that cluster
+
+    # Count connected components in this subgraph
+    # Using a simple BFS/DFS
+    visited = set()
+    components = 0
+
+    for i, gi in enumerate(idx):
+        if i in visited:
+            continue
+        components += 1
+        stack = [i]
+        while stack:
+            j = stack.pop()
+            if j in visited:
+                continue
+            visited.add(j)
+            # neighbors in subgraph
+            neigh = sub[j].nonzero()[1].tolist()
+            for n in neigh:
+                if n not in visited:
+                    stack.append(n)
+
+    if components > 1:
+        bad_clusters.append((k, components))
+
+print("Clusters with >1 connected component:", bad_clusters)
